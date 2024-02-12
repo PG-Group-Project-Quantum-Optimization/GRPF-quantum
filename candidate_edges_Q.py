@@ -5,7 +5,7 @@ import numpy as np
 from qiskit.providers.aer import AerSimulator
 from qiskit.quantum_info.operators import Operator
 from qiskit.circuit.library.phase_oracle import PhaseOracle
-from qiskit.circuit.library import MCMT, UnitaryGate, HGate, ZGate
+from qiskit.circuit.library import MCMT, UnitaryGate, HGate, ZGate, XGate
 from qiskit.result import QuasiDistribution
 import IPython
 import random
@@ -52,20 +52,41 @@ def test_gate(gate, input, expected_output, expected_output_qubits):
         print("Test failed!")
 
 
-def gate_D(num_a, num_b):
-    qc = QuantumCircuit(num_a + num_b)
-    num = [
-        (bin(a)[2:].zfill(num_a) + bin(b)[2:].zfill(num_b))
-        for a in range(2 ** num_a) for b in range(2 ** num_b) if abs(a - b) == 2
+def gate_D(num_b, num_c):
+    qc = QuantumCircuit(num_b + num_c)
+    correct_answers = [
+        (bin(a)[2:].zfill(num_b) + bin(b)[2:].zfill(num_c))
+        for a in range(2 ** num_b) for b in range(2 ** num_c) if abs(a - b) == 2
     ]
-    for target in num:
+    for target in correct_answers:
         rev_target = target[::-1]
-        zero_inds1 = [ind for ind in range(4) if rev_target.startswith("0", ind)]
+        zero_inds = [ind for ind in range(num_b + num_c) if rev_target.startswith("0", ind)]
 
-        qc.x(zero_inds1)
+        qc.x(zero_inds)
         qc.compose(MCMT(ZGate(), 3, 1), inplace=True)
-        qc.x(zero_inds1)
+        qc.x(zero_inds)
     qc.name = "a-b==2"
+    return qc.to_gate()
+
+
+def gate_B(num_a, num_b, query_func):
+    if len(query_func) != 2 ** num_a:
+        raise ValueError("Size num_a is not equal to size of query_func")
+    if max(query_func) > 2 ** num_b:
+        raise ValueError("Size num_b is lower than max value of query_func")
+    qc = QuantumCircuit(num_a + num_b)
+    x = np.array(list(enumerate(query_func)))
+    for n in range(num_b):
+        for target in x[:, 0][x[:, 1] & (1 << n) != 0]:
+            rev_target = bin(target)[2:].zfill(num_a)[::-1]
+            zero_inds = [ind for ind in range(num_a) if rev_target.startswith("0", ind)]
+
+            if zero_inds:
+                qc.x(zero_inds)
+            qc.compose(MCMT(XGate(), num_a, 1), list(range(num_a)) + [num_a + n], inplace=True)
+            if zero_inds:
+                qc.x(zero_inds)
+    qc.name = "b = quadrant(a)"
     return qc.to_gate()
 
 
@@ -86,7 +107,6 @@ def get_candidate_edges_gate(point_index_size, query_func, grid_width, direction
     # U_b
 
     U_b_mat = np.zeros((2 ** (b_size + a_size), 2 ** (b_size + a_size)), dtype=int)
-
     # |b>|a> -> |b XOR f(a)>|a>
     for a_val in range(2 ** a_size):
         # a_val is a value of a in dec form
@@ -96,10 +116,6 @@ def get_candidate_edges_gate(point_index_size, query_func, grid_width, direction
                     2 ** a_size) + a_val  # b_val shifted left by `a` size and then ORed with `a` gives `b` concatenated (in binary) with `a`
             mat_row = (b_val ^ out_val) * (2 ** a_size) + a_val
             U_b_mat[mat_row, mat_column] = 1
-
-    qcc = QuantumCircuit(b_size + a_size)
-    qcc.unitary(U_b_mat, [i for i in range(b_size + a_size)])
-
     U_b_gate = UnitaryGate(U_b_mat, label='U_b')
 
     # U_c
@@ -159,12 +175,12 @@ def get_candidate_edges_gate(point_index_size, query_func, grid_width, direction
 
     circuit = QuantumCircuit(a_r, b_r, c_r)
 
-    circuit.append(U_b_gate, a_r[:] + b_r[:])
+    circuit.append(gate_B(a_size, b_size, query_func), a_r[:] + b_r[:])
     circuit.append(U_c_gate, a_r[:] + c_r[:])
-    circuit.append(gate_D(len(b_r[:]), len(c_r[:])), b_r[:] + c_r[:])
-
+    circuit.append(gate_D(b_size, c_size), b_r[:] + c_r[:])
+    gate_B(a_size, b_size, query_func)
     circuit.append(U_c_inverse_gate, a_r[:] + c_r[:])
-    circuit.append(U_b_inverse_gate, a_r[:] + b_r[:])
+    circuit.append(gate_B(a_size, b_size, query_func).inverse(), a_r[:] + b_r[:])
 
     # qccqcc = transpile(circuit, basis_gates=['ecr', 'id', 'rz', 'sx', 'x'])
     # print(f"----------------After transpile: {sum(qccqcc.count_ops().values())}")
