@@ -1,3 +1,5 @@
+from math import ceil
+
 from qiskit import Aer, assemble, QuantumCircuit, transpile, QuantumRegister, ClassicalRegister
 from qiskit.visualization import plot_histogram
 from qiskit.quantum_info import Statevector
@@ -10,6 +12,8 @@ from qiskit.result import QuasiDistribution
 import IPython
 import random
 import time
+
+from scipy.ndimage import shift
 
 
 # works only on classical input
@@ -65,13 +69,11 @@ def gate_D(num_b, num_c):
         qc.x(zero_inds)
         qc.compose(MCMT(ZGate(), 3, 1), inplace=True)
         qc.x(zero_inds)
-    qc.name = "a-b==2"
+    qc.name = "a-b==2/U_d_gate"
     return qc.to_gate()
 
 
 def gate_B(num_a, num_b, query_func):
-    if len(query_func) != 2 ** num_a:
-        raise ValueError("Size num_a is not equal to size of query_func")
     if max(query_func) > 2 ** num_b:
         raise ValueError("Size num_b is lower than max value of query_func")
     qc = QuantumCircuit(num_a + num_b)
@@ -86,7 +88,33 @@ def gate_B(num_a, num_b, query_func):
             qc.compose(MCMT(XGate(), num_a, 1), list(range(num_a)) + [num_a + n], inplace=True)
             if zero_inds:
                 qc.x(zero_inds)
-    qc.name = "b = quadrant(a)"
+    qc.name = "b = quadrant(a)/U_b_gate"
+    return qc.to_gate()
+
+
+def gate_C(num_a, num_c, query_func, direction, grid_width):
+    if max(query_func) > 2 ** num_c:
+        raise ValueError("Size num_b is lower than max value of query_func")
+
+    query_func_temp = np.empty_like(query_func)
+    index_last_column = len(query_func) - grid_width - (grid_width + 1) % 2
+    if direction == 0:
+        query_func_temp[:index_last_column - (grid_width % 2)] = query_func[grid_width + 1:]
+        query_func_temp[(2 * grid_width)::(2 * grid_width) + 1] = query_func[(2 * grid_width)::(2 * grid_width) + 1]
+        query_func_temp[index_last_column:] = query_func[index_last_column:]
+    elif direction == 1:
+        query_func_temp[:-1] = query_func[1:]
+        query_func_temp[grid_width - 1::(2 * grid_width) + 1] = query_func[grid_width - 1::(2 * grid_width) + 1]
+        query_func_temp[2 * grid_width::(2 * grid_width) + 1] = query_func[2 * grid_width::(2 * grid_width) + 1]
+    elif direction == 2:
+        query_func_temp[:index_last_column + (grid_width + 1) % 2] = query_func[grid_width:]
+        query_func_temp[grid_width::(2 * grid_width) + 1] = query_func[grid_width::(2 * grid_width) + 1]
+        query_func_temp[index_last_column:] = query_func[index_last_column:]
+    print(query_func_temp)
+
+    qc = QuantumCircuit(num_a + num_c)
+    qc.append(gate_B(num_a, num_c, query_func_temp), list(range(num_a + num_c)))
+    qc.name = "c = quadrant(a)/U_c_gate"
     return qc.to_gate()
 
 
@@ -97,77 +125,15 @@ def get_candidate_edges_gate(point_index_size, query_func, grid_width, direction
     # direction = 1 -> right
     # direction = 2 -> left-down
 
-    if len(query_func) != 2 ** point_index_size:
-        print("Length of the query function does not match the size of a point index!")
-        return
 
     a_size = point_index_size
     b_size = 2
-
-    # U_b
-
-    U_b_mat = np.zeros((2 ** (b_size + a_size), 2 ** (b_size + a_size)), dtype=int)
-    # |b>|a> -> |b XOR f(a)>|a>
-    for a_val in range(2 ** a_size):
-        # a_val is a value of a in dec form
-        out_val = query_func[a_val]
-        for b_val in range(b_size ** 2):
-            mat_column = b_val * (
-                    2 ** a_size) + a_val  # b_val shifted left by `a` size and then ORed with `a` gives `b` concatenated (in binary) with `a`
-            mat_row = (b_val ^ out_val) * (2 ** a_size) + a_val
-            U_b_mat[mat_row, mat_column] = 1
-    U_b_gate = UnitaryGate(U_b_mat, label='U_b')
-
-    # U_c
-
     c_size = b_size
-
-    U_c_mat = np.zeros((2 ** (b_size + a_size), 2 ** (b_size + a_size)), dtype=int)
-
-    # |c>|a> -> |c XOR f(a)>|a>
-    row = 0  # index of a row (%2 = 0 -> number of points = width; %2 = 1 -> number of points = width + 1) 
-    row_node = 0  # index of a row node
-    for a_val in range(2 ** a_size):
-        # a_val is a value of `a` in dec form
-
-        if direction == 0:
-            offset = grid_width + 1
-            if ((row % 2) == 1) and (row_node + 1 == grid_width + 1):  # if there's no right-down edge from this node
-                offset = 0
-        elif direction == 1:
-            offset = 1
-            if (row_node + 1) == (grid_width + (row % 2)):  # if the node is on the right boundary
-                offset = 0
-        elif direction == 2:
-            offset = grid_width
-            if ((row % 2) == 1) and (row_node + 1 == 1):  # if there's no left-down edge from this node
-                offset = 0
-
-        if ((a_val + offset) >= 2 ** a_size) or ((a_val + offset) >= number_of_true_points):
-            offset = 0
-
-        out_val = query_func[a_val + offset]
-
-        for c_val in range(c_size ** 2):
-            mat_column = c_val * (
-                    2 ** a_size) + a_val  # c_val shifted left by `a` size and then ORed with `a` gives `c` concatenated (in binary) with `a`
-            mat_row = (c_val ^ out_val) * (2 ** a_size) + a_val
-            U_c_mat[mat_row, mat_column] = 1
-
-        row_node += 1
-        if row % 2 == 0:
-            if row_node == grid_width:
-                row += 1
-                row_node = 0
-        else:
-            if row_node == (grid_width + 1):
-                row += 1
-                row_node = 0
-
-    U_c_gate = UnitaryGate(U_c_mat, label='U_c')
-
-    U_b_inverse_gate = UnitaryGate(U_b_mat.T, label='U_b_I')
-    U_c_inverse_gate = UnitaryGate(U_c_mat.T, label='U_c_I')
+    print(grid_width)
+    print(query_func)
+    gateb = gate_B(a_size, b_size, query_func)
+    gatec = gate_C(a_size, c_size, query_func, direction, grid_width)
+    gated = gate_D(b_size, c_size)
 
     a_r = QuantumRegister(a_size, 'a')
     b_r = QuantumRegister(b_size, 'b')
@@ -175,16 +141,11 @@ def get_candidate_edges_gate(point_index_size, query_func, grid_width, direction
 
     circuit = QuantumCircuit(a_r, b_r, c_r)
 
-    circuit.append(gate_B(a_size, b_size, query_func), a_r[:] + b_r[:])
-    circuit.append(U_c_gate, a_r[:] + c_r[:])
-    circuit.append(gate_D(b_size, c_size), b_r[:] + c_r[:])
-    gate_B(a_size, b_size, query_func)
-    circuit.append(U_c_inverse_gate, a_r[:] + c_r[:])
-    circuit.append(gate_B(a_size, b_size, query_func).inverse(), a_r[:] + b_r[:])
-
-    # qccqcc = transpile(circuit, basis_gates=['ecr', 'id', 'rz', 'sx', 'x'])
-    # print(f"----------------After transpile: {sum(qccqcc.count_ops().values())}")
-    # print(circuit)
+    circuit.append(gateb, a_r[:] + b_r[:])
+    circuit.append(gatec, a_r[:] + c_r[:])
+    circuit.append(gated, b_r[:] + c_r[:])
+    circuit.append(gatec.inverse(), a_r[:] + c_r[:])
+    circuit.append(gateb.inverse(), a_r[:] + b_r[:])
 
     candidate_edges_gate = circuit.to_gate(label='Z_f')
 
@@ -230,10 +191,10 @@ def find_candidate_edges(quadrants_arr, grid_width):
     random.seed(time.time())
 
     point_index_size = int(np.ceil(np.log2(len(quadrants_arr))))
+    np.set_printoptions(linewidth=(2**point_index_size)*3)
 
     #  padding with zeros to create additional data for `a` register and substract 1 to get quadrants from 0 to 3
-    quadrants_data = np.pad(quadrants_arr - 1, (0, 2 ** point_index_size - len(quadrants_arr)), 'constant',
-                            constant_values=(0, 0))
+    quadrants_data = quadrants_arr - 1
 
     candidate_edges_list = []
     for direction in range(3):
@@ -260,6 +221,7 @@ def find_candidate_edges(quadrants_arr, grid_width):
 
         # for unknown s (number of solutions)
         num_of_iterations = random.randint(1, np.floor(np.pi * np.sqrt(N) / 4).astype(int))
+        num_of_iterations = int(np.sqrt(N))
         print(f'Number of iterations: {num_of_iterations}')
 
         for i in range(num_of_iterations):
