@@ -15,7 +15,7 @@ A repository for code related to GRPF (Global Root and Pole Finding) algorithm
 - [GRPF.py](GRPF.py) - main body of the algorithm  
 - [analysis_parameters.py](analysis_parameters.m) - analysis parameters definition
 - [fun.py](fun.py) - function definition
-- [candidate_edges_Q.py] (candidate_edges_Q.py) - generates and simulates quantum circuits that find candidate edges in the first iteration of GRPF
+- [candidate_edges_Q.py](candidate_edges_Q.py) - generates and simulates quantum circuits that find candidate edges in the first iteration of GRPF
 - [rect_dom.py](rect_dom.py) - initial mesh generator for rectangular domain
 - [disk_dom.py](disk_dom.py) - initial mesh generator for circular domain
 - [vinq.py](vinq.py) - converts the function value into proper quadrant
