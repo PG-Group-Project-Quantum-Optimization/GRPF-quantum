@@ -12,7 +12,7 @@ A repository for code related to GRPF (Global Root and Pole Finding) algorithm
 4. **to run examples**: copy (and overwrite) [analysis_parameters.py](analysis_parameters.py) and [fun.py](fun.py) files from the folder containing the example to the main folder and start GRPF program
  
 ## Short description of the functions
-- [GRPF.py](GRPF.py) - main body of the algorithm  
+- [grpf.py](grpf.py) - main body of the algorithm  
 - [analysis_parameters.py](analysis_parameters.m) - analysis parameters definition
 - [fun.py](fun.py) - function definition
 - [candidate_edges_Q.py](candidate_edges_Q.py) - generates and simulates quantum circuits that find candidate edges in the first iteration of GRPF
