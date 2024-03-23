@@ -2,31 +2,22 @@
 A repository for code related to GRPF (Global Root and Pole Finding) algorithm
 
 ## How to use
-### Setting up a complex function
-To define a function that can be used in the code you need to create `fun()` function that takes in a complex number and outputs a complex number and a file **analysis_parameters.py** that contains information on the parameters for the analysis of `fun()` in the following format:
-```python
-import numpy as np
-from rect_dom import rect_dom
-
-# Bounding coordinates of the analyzed area
-xb = -100
-xe = 400
-yb = -100
-ye = 400
-
-# Initial distance between nodes
-r = 18
-
-NewNodesCoord = rect_dom(xb, xe, yb, ye, r)
-
-Tol = 1e-9
-visual = 2
-ItMax = 100
-NodesMax = 500000
-SkinnyTriangle = 3
-```
-
-In the `grpf()` function import `ItMax`, `NodesMax`, `Tol`, `SkinnyTriangle`, `visual`, `NewNodesCoord` parameters and `fun()` function.
-
-### Running the code
-To run the code on your complex function simply run the **grpf.py** file.
+1. **[grpf.py](grpf.py) - starts the program**
+2. [analysis_parameters.py](/analysis_parameters.py) - contains all parameters of the analysis, e.g.:
+    * the domain shape and size (two domain shapes are available: rectangle and circle, as described in the examples) 
+    * the initial step
+    * accuracy (Tol)
+    * mesh visualization options
+3. [fun.py](fun.py) - definition of the function for which roots and poles will be calculated
+4. **to run examples**: copy (and overwrite) [analysis_parameters.py](analysis_parameters.py) and [fun.py](fun.py) files from the folder containing the example to the main folder and start GRPF program
+ 
+## Short description of the functions
+- [GRPF.py](GRPF.py) - main body of the algorithm  
+- [analysis_parameters.py](analysis_parameters.m) - analysis parameters definition
+- [fun.py](fun.py) - function definition
+- [candidate_edges_Q.py] (candidate_edges_Q.py) - generates and simulates quantum circuits that find candidate edges in the first iteration of GRPF
+- [rect_dom.py](rect_dom.py) - initial mesh generator for rectangular domain
+- [disk_dom.py](disk_dom.py) - initial mesh generator for circular domain
+- [vinq.py](vinq.py) - converts the function value into proper quadrant
+- [find_next_node.py](find_next_node.py) - finds the next node in the candidate boundary creation process
+- [vis.py](vis.py) - mesh visualization
