@@ -63,16 +63,6 @@ def grpf():
         NewNodesCoord = np.empty((0, 2))
         NrOfNodes = len(NodesCoord)
 
-        # DEBUG
-        # print numbering of nodes in the format: (index of a node in quantum GRPF / corresponding index of a node in classical GRPF)  
-        # for i in range(len(node_indicies)):
-        #     node_index = node_indicies[i]
-        #     plt.plot(NodesCoord[:,0], NodesCoord[:,1], 'o', color='lightgreen')
-        #     #plt.plot(NodesCoord[node_index, 0], NodesCoord[node_index,1], 'yx')
-        #     plt.text(NodesCoord[node_index,0], NodesCoord[node_index,1], f'{i}/{node_index}', color="brown", fontsize=10)
-        #     #plt.text(NodesCoord[i,0], NodesCoord[i,1], f'{Quadrants[i]}', color="brown", fontsize=10) # show quadrants
-        # plt.show()
-
         print(f'Triangulation and analysis of {NrOfNodes} nodes...')
 
         #Triangulation 

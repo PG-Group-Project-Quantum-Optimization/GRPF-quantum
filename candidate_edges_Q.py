@@ -15,47 +15,6 @@ import time
 
 from scipy.ndimage import shift
 
-
-# works only on classical input
-# input and expected_output is written starting from the leftmost qubit register of the gate (reverse of the circuit qubit order)
-# input is an array of input qubits values (0/1) for the gate (reverse of the circuit qubit order)
-# expected_output is a string composed of expected values of qubits listed in expected_output_qubits
-# expected_output_qubits is based on the circuit qubit order (see example)
-def test_gate(gate, input, expected_output, expected_output_qubits):
-    # example: test_gate(gate, [b_1, b_0, a_3, a_2, a_1, a_0], '11', [b_1_qubit_index, b_0_qubit_index])
-    # -> test_gate(gate, [0, 0, 1, 1, 0, 1], '11', [4, 5]) # notice the expected_output_qubits indexes
-
-    q_r = QuantumRegister(gate.num_qubits, 'q')
-    cl_r = ClassicalRegister(len(expected_output_qubits))
-
-    circuit = QuantumCircuit(q_r, cl_r)
-
-    for i in range(len(input)):
-        circuit.initialize(input[len(input) - 1 - i], i)
-
-    circuit.append(gate, q_r[:])
-    for i in range(len(expected_output_qubits)):
-        circuit.measure(expected_output_qubits[i], i)
-
-    # print(circuit)
-
-    simulator = Aer.get_backend('qasm_simulator')
-    t_circ = transpile(circuit, simulator)
-    result = simulator.run(t_circ).result()
-    counts = result.get_counts()
-
-    # IPython.display.display(plot_histogram(counts))
-
-    # TODO: extend this part of the code to work on non-classical input
-
-    print(counts)
-
-    if (expected_output in counts) and (counts[expected_output] == 1024):
-        print("Test successful!")
-    else:
-        print("Test failed!")
-
-
 def gate_D(num_b, num_c):
     qc = QuantumCircuit(num_b + num_c)
     correct_answers = [
@@ -125,7 +84,6 @@ def get_candidate_edges_gate(point_index_size, query_func, grid_width, direction
     # direction = 1 -> right
     # direction = 2 -> left-down
 
-
     a_size = point_index_size
     b_size = 2
     c_size = b_size
@@ -190,7 +148,8 @@ def find_candidate_edges(quadrants_arr, grid_width):
     # random.seed(1)
     random.seed(time.time())
 
-    point_index_size = int(np.ceil(np.log2(len(quadrants_arr))))
+    point_index_size = int(np.ceil(np.log2(len(quadrants_arr))))  # number of bits to fit a point with largest index
+    
     np.set_printoptions(linewidth=(2**point_index_size)*3)
 
     #  padding with zeros to create additional data for `a` register and substract 1 to get quadrants from 0 to 3
@@ -212,26 +171,27 @@ def find_candidate_edges(quadrants_arr, grid_width):
         circuit.h(a_r[:])
 
         N = 2 ** a_r.size
-        # number of solutions
-        # s = 4
+        
+        # s = 4  # number of solutions for a given direction (if known)
         # theta = np.arcsin(np.sqrt(s / N))
         # num_of_iterations = np.floor(np.pi / (4 * theta)).astype(int)
-        # p = np.sin((2 * num_of_iterations + 1) * theta) ** 2
+        # p = np.sin((2 * num_of_iterations + 1) * theta) ** 2  # probability of finding the solution in one iteration
         # print("P = %12.10f" % (p))
 
         # for unknown s (number of solutions)
         num_of_iterations = random.randint(1, np.floor(np.pi * np.sqrt(N) / 4).astype(int))
         num_of_iterations = int(np.sqrt(N))
+        
         print(f'Number of iterations: {num_of_iterations}')
 
+        # creating the iterations of grover algorithm
         for i in range(num_of_iterations):
             grover_iteration(a_r[:], a_r[:] + b_r[:] + c_r[:], circuit, candidate_edges_gate)
 
         for i in range(a_r.size):
             circuit.measure(a_r[i], i)
-
-        # print(circuit)
-
+        
+        # simulating the circuit 1024 times
         simulator = Aer.get_backend('qasm_simulator')
         t_circ = transpile(circuit, simulator)
         result = simulator.run(t_circ).result()
@@ -249,14 +209,14 @@ def find_candidate_edges(quadrants_arr, grid_width):
         for result in counts:
             if counts[result] >= max_result / 2:
                 reduced_results.append(result)
-        # reduced_recults.sort()
 
-        # if over alpha percent of all possible solutions matched, then there's high probability that there was no solution for this direction
+        # if over alpha of all possible solutions matched, then there's high probability that there was no solution for this direction
         alpha = 0.33
 
         if len(reduced_results) / 2 ** a_r.size >= alpha:
             print(f'No solutions for this direction')
         else:
+            # selecting the second point based on the direction of searching
             for node_in_str in reduced_results:
                 nodeA = int(node_in_str, 2)
                 if direction == 0:
@@ -267,7 +227,7 @@ def find_candidate_edges(quadrants_arr, grid_width):
                     nodeB = nodeA + grid_width
                 candidate_edges_list.append([nodeA, nodeB])
 
-        candidate_edges = np.array(candidate_edges_list)
+    candidate_edges = np.array(candidate_edges_list)
     filter_outside_values = np.logical_and(candidate_edges[:, 0] < len(quadrants_arr),
                                            candidate_edges[:, 1] < len(quadrants_arr))
 
