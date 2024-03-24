@@ -83,39 +83,45 @@ def grpf():
         #Finding candidate edges
         PhasesDiff = np.mod(Quadrants[Edges[:, 0]] - Quadrants[Edges[:, 1]], 4).flatten()
 
+        CandidateEdges = []
+        
         if it == 1:
             # Quantum part
-            
-            # find grid width (counted in number of points in the first line in quantum ordering -> leftmost straight line)
-            grid_width = 0
-            for i in range(len(node_indicies)):
-                if i != 0 and NodesCoord[node_indicies[0], 0] != NodesCoord[node_indicies[i], 0]:
-                    grid_width = i
-                    break
+
+            max_tries = 10
+            are_edges_true = False
+            for tries in range(max_tries):
+                print(f'tries {tries}')
+                
+                # find grid width (counted in number of points in the first line in quantum ordering -> leftmost straight line)
+                grid_width = 0
+                for i in range(len(node_indicies)):
+                    if i != 0 and NodesCoord[node_indicies[0], 0] != NodesCoord[node_indicies[i], 0]:
+                        grid_width = i
+                        break
+        
+                quadrant_arr = Quadrants[:,0].astype(int)
+                candidate_edges_Qorder = find_candidate_edges(quadrant_arr[node_indicies], grid_width)  # candidate_edges in order of the quantum algorithm of GRPF
+                
+                candidate_edges_Corder = np.empty([len(candidate_edges_Qorder), 2], dtype=int)  # candidate_edges in order of the classical algorithm of GRPF
+                for i in range(len(candidate_edges_Qorder)):
+                    candidate_edges_Corder[i, 0] = node_indicies[candidate_edges_Qorder[i, 0]]
+                    candidate_edges_Corder[i, 1] = node_indicies[candidate_edges_Qorder[i, 1]]
     
-            quadrant_arr = Quadrants[:,0].astype(int)
-            candidate_edges_Qorder = find_candidate_edges(quadrant_arr[node_indicies], grid_width)  # candidate_edges in order of the quantum algorithm of GRPF
-            
-            candidate_edges_Corder = np.empty([len(candidate_edges_Qorder), 2], dtype=int)  # candidate_edges in order of the classical algorithm of GRPF
-            for i in range(len(candidate_edges_Qorder)):
-                candidate_edges_Corder[i, 0] = node_indicies[candidate_edges_Qorder[i, 0]]
-                candidate_edges_Corder[i, 1] = node_indicies[candidate_edges_Qorder[i, 1]]
-
-            are_edges_true = True
-            # check if the candidates edges are true
-            for Edge in candidate_edges_Corder:
-                if np.absolute(Quadrants[Edge[0]] - Quadrants[Edge[1]]) != 2:
-                    are_edges_true = False
+                are_edges_true = True
+                # check if the candidates edges are true
+                for Edge in candidate_edges_Corder:
+                    if np.absolute(Quadrants[Edge[0]] - Quadrants[Edge[1]]) != 2:
+                        are_edges_true = False
+                        break
+    
+                print(f'Edges found by quantum algorithm: {candidate_edges_Corder}')
+                print(f'Edges are {are_edges_true}!')
+    
+                if are_edges_true == True:
+                    CandidateEdges = candidate_edges_Corder
                     break
 
-            print(f'Edges found by quantum algorithm: {candidate_edges_Corder}')
-            print(f'Edges are {are_edges_true}!')
-
-            if are_edges_true == True:
-                CandidateEdges = candidate_edges_Corder
-
-            #print(candidate_edges_Corder)
-            #print(CandidateEdges)
         else:
             CandidateEdges = Edges[(PhasesDiff == 2) | np.isnan(PhasesDiff)]
         
