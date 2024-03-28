@@ -2,18 +2,12 @@ import numpy as np
 from rect_dom import rect_dom
 
 # Bounding coordinates of analysed area.
-xb = -2
-xe = 2
-yb = -2
-ye = 2
+xb = -8
+xe = 8
+yb = -8
+ye = 8
 
-
-# Initial distance between nodes
-#r = 0.2
-
-# DEBUG
-r = 1.5
-# DEBUG
+r = 3
 
 NewNodesCoord = rect_dom(xb, xe, yb, ye, r)
 
