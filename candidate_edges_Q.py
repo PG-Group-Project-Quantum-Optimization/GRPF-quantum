@@ -16,21 +16,22 @@ import time
 from scipy.ndimage import shift
 
 def gate_D(num_b, num_c):
-    qc = QuantumCircuit(num_b + num_c)
-    correct_answers = [
-        (bin(a)[2:].zfill(num_b) + bin(b)[2:].zfill(num_c))
-        for a in range(2 ** num_b) for b in range(2 ** num_c) if abs(a - b) == 2
-    ]
-    for target in correct_answers:
-        rev_target = target[::-1]
-        zero_inds = [ind for ind in range(num_b + num_c) if rev_target.startswith("0", ind)]
+    U_d_mat = np.zeros((2 ** (1 + num_c + num_b), 2 ** (1 + num_c + num_b)), dtype=int)
 
-        qc.x(zero_inds)
-        qc.compose(MCMT(ZGate(), 3, 1), inplace=True)
-        qc.x(zero_inds)
-    qc.name = "a-b==2/U_d_gate"
-    return qc.to_gate()
-
+    b_size = num_b
+    c_size = num_c
+    d_size = 1
+    
+    # |d>|c>|b> -> |y>|c>|b>
+    for b_val in range(2 ** b_size):
+        for c_val in range(2 ** c_size):
+            for d_val in range(2 ** d_size):
+                mat_column_0 = d_val * (2 ** (b_size + c_size)) + (b_val * (2**c_size) + c_val)
+                out_val = (1 if abs(b_val - c_val) == 2 else 0)
+                mat_row = (d_val ^ out_val) * (2 ** (b_size + c_size)) + (b_val * (2**c_size) + c_val)
+                U_d_mat[mat_row, mat_column_0] = 1
+    U_d_gate = UnitaryGate(U_d_mat, label="  $U_d$  ")
+    return U_d_gate
 
 def gate_B(num_a, num_b, query_func):
     if max(query_func) > 2 ** num_b:
@@ -47,7 +48,7 @@ def gate_B(num_a, num_b, query_func):
             qc.compose(MCMT(XGate(), num_a, 1), list(range(num_a)) + [num_a + n], inplace=True)
             if zero_inds:
                 qc.x(zero_inds)
-    qc.name = "b = quadrant(a)/U_b_gate"
+    qc.name = "  $U_b$   "
     return qc.to_gate()
 
 
@@ -73,7 +74,7 @@ def gate_C(num_a, num_c, query_func, direction, grid_width):
 
     qc = QuantumCircuit(num_a + num_c)
     qc.append(gate_B(num_a, num_c, query_func_temp), list(range(num_a + num_c)))
-    qc.name = "c = quadrant(a)/U_c_gate"
+    qc.name = "  $U_c$   "
     return qc.to_gate()
 
 
@@ -96,14 +97,24 @@ def get_candidate_edges_gate(point_index_size, query_func, grid_width, direction
     a_r = QuantumRegister(a_size, 'a')
     b_r = QuantumRegister(b_size, 'b')
     c_r = QuantumRegister(c_size, 'c')
+    d_r = QuantumRegister(1, 'd')
 
-    circuit = QuantumCircuit(a_r, b_r, c_r)
+    circuit = QuantumCircuit(a_r, b_r, c_r, d_r)
 
     circuit.append(gateb, a_r[:] + b_r[:])
     circuit.append(gatec, a_r[:] + c_r[:])
-    circuit.append(gated, b_r[:] + c_r[:])
-    circuit.append(gatec.inverse(), a_r[:] + c_r[:])
-    circuit.append(gateb.inverse(), a_r[:] + b_r[:])
+    circuit.append(gated, b_r[:] + c_r[:] + d_r[:])
+
+    gatec_inverse = gatec.inverse()
+    gatec_inverse.name = "  $U_c^{-1}$ "
+
+    gateb_inverse = gateb.inverse()
+    gateb_inverse.name = "  $U_b^{-1}$ "
+    
+    circuit.append(gatec_inverse, a_r[:] + c_r[:])
+    circuit.append(gateb_inverse, a_r[:] + b_r[:])
+
+    IPython.display.display(circuit.draw(output='mpl',  style='bw'))
 
     candidate_edges_gate = circuit.to_gate(label='Z_f')
 
@@ -164,8 +175,11 @@ def find_candidate_edges(quadrants_arr, grid_width):
         a_r = QuantumRegister(point_index_size, 'a')
         b_r = QuantumRegister(2, 'b')
         c_r = QuantumRegister(2, 'c')
+        d_r = QuantumRegister(1, 'd')
         cl_a_r = ClassicalRegister(a_r.size, 'a_out')
-        circuit = QuantumCircuit(a_r, b_r, c_r, cl_a_r)
+        circuit = QuantumCircuit(a_r, b_r, c_r, d_r, cl_a_r)
+
+        
 
         # # prepare a superposition of work qubits
         circuit.h(a_r[:])
@@ -186,10 +200,12 @@ def find_candidate_edges(quadrants_arr, grid_width):
 
         # creating the iterations of grover algorithm
         for i in range(num_of_iterations):
-            grover_iteration(a_r[:], a_r[:] + b_r[:] + c_r[:], circuit, candidate_edges_gate)
+            grover_iteration(a_r[:], a_r[:] + b_r[:] + c_r[:] + d_r[:], circuit, candidate_edges_gate)
 
         for i in range(a_r.size):
             circuit.measure(a_r[i], i)
+
+        IPython.display.display(circuit.draw('mpl'))
         
         # simulating the circuit 1024 times
         simulator = Aer.get_backend('qasm_simulator')
@@ -232,3 +248,4 @@ def find_candidate_edges(quadrants_arr, grid_width):
                                            candidate_edges[:, 1] < len(quadrants_arr))
 
     return candidate_edges[filter_outside_values]
+    
