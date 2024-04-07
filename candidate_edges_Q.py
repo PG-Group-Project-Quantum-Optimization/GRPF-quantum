@@ -70,7 +70,6 @@ def gate_C(num_a, num_c, query_func, direction, grid_width):
         query_func_temp[:index_last_column + (grid_width + 1) % 2] = query_func[grid_width:]
         query_func_temp[grid_width::(2 * grid_width) + 1] = query_func[grid_width::(2 * grid_width) + 1]
         query_func_temp[index_last_column:] = query_func[index_last_column:]
-    print(query_func_temp)
 
     qc = QuantumCircuit(num_a + num_c)
     qc.append(gate_B(num_a, num_c, query_func_temp), list(range(num_a + num_c)))
@@ -88,8 +87,7 @@ def get_candidate_edges_gate(point_index_size, query_func, grid_width, direction
     a_size = point_index_size
     b_size = 2
     c_size = b_size
-    print(grid_width)
-    print(query_func)
+
     gateb = gate_B(a_size, b_size, query_func)
     gatec = gate_C(a_size, c_size, query_func, direction, grid_width)
     gated = gate_D(b_size, c_size)
@@ -114,7 +112,7 @@ def get_candidate_edges_gate(point_index_size, query_func, grid_width, direction
     circuit.append(gatec_inverse, a_r[:] + c_r[:])
     circuit.append(gateb_inverse, a_r[:] + b_r[:])
 
-    IPython.display.display(circuit.draw(output='mpl',  style='bw'))
+    # IPython.display.display(circuit.draw(output='mpl',  style='bw'))
 
     candidate_edges_gate = circuit.to_gate(label='Z_f')
 
@@ -168,6 +166,7 @@ def find_candidate_edges(quadrants_arr, grid_width):
 
     candidate_edges_list = []
     for direction in range(3):
+        print(f'Direction: {direction}')
         candidate_edges_gate = get_candidate_edges_gate(point_index_size=point_index_size, query_func=quadrants_data,
                                                         grid_width=grid_width, direction=direction,
                                                         number_of_true_points=len(quadrants_arr))
@@ -178,8 +177,6 @@ def find_candidate_edges(quadrants_arr, grid_width):
         d_r = QuantumRegister(1, 'd')
         cl_a_r = ClassicalRegister(a_r.size, 'a_out')
         circuit = QuantumCircuit(a_r, b_r, c_r, d_r, cl_a_r)
-
-        
 
         # # prepare a superposition of work qubits
         circuit.h(a_r[:])
@@ -205,7 +202,7 @@ def find_candidate_edges(quadrants_arr, grid_width):
         for i in range(a_r.size):
             circuit.measure(a_r[i], i)
 
-        IPython.display.display(circuit.draw('mpl'))
+        # IPython.display.display(circuit.draw(output='mpl',  style='bw'))
         
         # simulating the circuit 1024 times
         simulator = Aer.get_backend('qasm_simulator')
