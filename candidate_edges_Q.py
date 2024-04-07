@@ -154,7 +154,6 @@ def grover_iteration(work_qubits, all_qubits, circuit, candidate_edges_gate):
 
 
 def find_candidate_edges(quadrants_arr, grid_width):
-    # random.seed(1)
     random.seed(time.time())
 
     point_index_size = int(np.ceil(np.log2(len(quadrants_arr))))  # number of bits to fit a point with largest index
@@ -178,7 +177,7 @@ def find_candidate_edges(quadrants_arr, grid_width):
         cl_a_r = ClassicalRegister(a_r.size, 'a_out')
         circuit = QuantumCircuit(a_r, b_r, c_r, d_r, cl_a_r)
 
-        # # prepare a superposition of work qubits
+        # prepare a superposition of work qubits
         circuit.h(a_r[:])
 
         N = 2 ** a_r.size
@@ -210,7 +209,6 @@ def find_candidate_edges(quadrants_arr, grid_width):
         result = simulator.run(t_circ).result()
         counts = result.get_counts()
 
-        # print(f'Direction: {direction}')
         IPython.display.display(plot_histogram(counts))
 
         reduced_results = []
