@@ -14,6 +14,6 @@ NewNodesCoord = rect_dom(xb, xe, yb, ye, r)  # Initial mesh generation
 
 Tol = 1e-9  # Accuracy
 visual = 2  # Mesh visualization: 0 - turned off, 1 - only last iteration, 2 - all iterations
-ItMax = 10  # Max number of iterations
+ItMax = 1000  # Max number of iterations
 NodesMax = 500000  # Max number of nodes
 SkinnyTriangle = 3  # Skinny triangle definition

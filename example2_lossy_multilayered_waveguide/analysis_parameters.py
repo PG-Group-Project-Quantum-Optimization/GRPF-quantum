@@ -14,6 +14,6 @@ NewNodesCoord = rect_dom(xb, xe, yb, ye, r)
 
 Tol = 1e-9
 visual = 2
-ItMax = 100
+ItMax = 1000
 NodesMax = 500000
 SkinnyTriangle = 3
