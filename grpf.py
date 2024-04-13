@@ -67,8 +67,8 @@ def grpf():
 
         #Triangulation 
         opts = None
-        DT = Delaunay(NodesCoord)
-        Elements = DT.simplices  # gets indices of NodesCoord([[x,y], [x,y], ...]) that make triangles([[a,b,c], [a,b,c]]) ->
+        DT = tr.triangulate({'vertices': NodesCoord}, 'e')
+        Elements = DT['triangles']  # gets indices of NodesCoord([[x,y], [x,y], ...]) that make triangles([[a,b,c], [a,b,c]]) ->
         # -> NodesCoord[Elements] = [[[x_a, y_a], [x_b, y_b], [x_c, y_c]], [x_a, y_a], [x_b, y_b], [x_c, y_c]], ...]
 
         NrOfElements = Elements.shape[0]
