@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def vis(NodesCoord, Edges, Quadrants, PhasesDiff, it, Show=True):
+def vis(NodesCoord, Edges, Quadrants, PhasesDiff, Show=True):
     '''
     Visualises the existing mesh, with colored edges representing quadrants and candidate edges.
 
