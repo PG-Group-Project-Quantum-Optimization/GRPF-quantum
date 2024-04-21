@@ -1,5 +1,6 @@
 from math import ceil
 
+import matplotlib.pyplot as plt
 from qiskit import Aer, assemble, QuantumCircuit, transpile, QuantumRegister, ClassicalRegister
 from qiskit.visualization import plot_histogram
 from qiskit.quantum_info import Statevector
@@ -209,7 +210,11 @@ def find_candidate_edges(quadrants_arr, grid_width):
         result = simulator.run(t_circ).result()
         counts = result.get_counts()
 
-        IPython.display.display(plot_histogram(counts))
+        # fig = plot_histogram(counts)
+        # plt.title(f'Direction {direction}')
+        # plt.tick_params(axis='x', which='major', labelsize=3)
+        # plt.savefig(f'histogerm_direction_{direction}.eps', format='eps', dpi=1200)
+        # plt.show()
 
         reduced_results = []
         max_result = 0
