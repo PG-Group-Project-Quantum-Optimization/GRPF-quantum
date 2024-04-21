@@ -30,8 +30,8 @@ from candidate_edges_Q import find_candidate_edges
 
 def grpf():
 
-    from analysis_parameters import ItMax, NodesMax, Tol, SkinnyTriangle, visual, NewNodesCoord
-    from fun import fun
+    from example_functionA.analysis_parameters import ItMax, NodesMax, Tol, SkinnyTriangle, visual, NewNodesCoord
+    from example_functionA.fun import fun
         
     # Initialize variables
     NodesCoord = np.array([]).reshape(0, 2)
@@ -99,10 +99,50 @@ def grpf():
                     if i != 0 and NodesCoord[node_indicies[0], 0] != NodesCoord[node_indicies[i], 0]:
                         grid_width = i
                         break
-        
+
+                # # ---------------------
+                # # Save to file Edge directions plot
+                # xy_pos = (NodesCoord[node_indicies])
+                # query_func_temp = np.empty_like(xy_pos)
+                # index_last_column = xy_pos.shape[0] - grid_width - (grid_width + 1) % 2
+                # for direction in range(3):
+                #     if direction == 0:
+                #         query_func_temp[:index_last_column - (grid_width % 2)] = xy_pos[grid_width + 1:]
+                #         query_func_temp[(2 * grid_width)::(2 * grid_width) + 1] = xy_pos[(2 * grid_width)::(
+                #                                                                                                        2 * grid_width) + 1]
+                #         query_func_temp[index_last_column:] = xy_pos[index_last_column:]
+                #         color = [1, 0, 0]
+                #     elif direction == 1:
+                #         query_func_temp[:-1] = xy_pos[1:]
+                #         query_func_temp[grid_width - 1::(2 * grid_width) + 1] = xy_pos[
+                #                                                                 grid_width - 1::(2 * grid_width) + 1]
+                #         query_func_temp[2 * grid_width::(2 * grid_width) + 1] = xy_pos[
+                #                                                                 2 * grid_width::(2 * grid_width) + 1]
+                #         color = [0, 0, 1]
+                #     elif direction == 2:
+                #         query_func_temp[:index_last_column + (grid_width + 1) % 2] = xy_pos[grid_width:]
+                #         query_func_temp[grid_width::(2 * grid_width) + 1] = xy_pos[grid_width::(2 * grid_width) + 1]
+                #         query_func_temp[index_last_column:] = xy_pos[index_last_column:]
+                #         color = [0, 0.5, 0]
+                #     plt.quiver(
+                #         xy_pos[:, 0],
+                #         xy_pos[:, 1],
+                #         query_func_temp[:, 0] - xy_pos[:, 0],
+                #         query_func_temp[:, 1] - xy_pos[:, 1],
+                #         scale_units="xy", angles='xy', scale=1, color=color
+                #     )
+                # plt.xlabel("Re(z)")
+                # plt.ylabel("Im(z)")
+                # plt.legend(["α", "β", "γ"], loc="upper right", bbox_to_anchor=(1.1, 1.0))
+                # plt.tight_layout()
+                # plt.savefig(f'function_direction.eps', format='eps', dpi=1200)
+                # plt.show()
+                # # ---------------------
+
+
                 quadrant_arr = Quadrants[:,0].astype(int)
                 candidate_edges_Qorder = find_candidate_edges(quadrant_arr[node_indicies], grid_width)  # candidate_edges in order of the quantum algorithm of GRPF
-                
+
                 candidate_edges_Corder = np.empty([len(candidate_edges_Qorder), 2], dtype=int)  # candidate_edges in order of the classical algorithm of GRPF
                 for i in range(len(candidate_edges_Qorder)):
                     candidate_edges_Corder[i, 0] = node_indicies[candidate_edges_Qorder[i, 0]]
@@ -116,6 +156,7 @@ def grpf():
                         break
     
                 print(f'Edges found by quantum algorithm: {candidate_edges_Corder}')
+                print(f'Number of found edge by quantum algorithm: {len(candidate_edges_Corder)}')
                 print(f'Edges are {are_edges_true}!')
     
                 if are_edges_true == True:
@@ -223,7 +264,7 @@ def grpf():
 
         
         if visual == 2:
-            vis(NodesCoord, Edges, Quadrants, PhasesDiff)
+            vis(NodesCoord, Edges, Quadrants, PhasesDiff, it)
             pass
         
         print(f'Iteration: {it} done')
@@ -237,7 +278,7 @@ def grpf():
     
     # Visualization if visual > 0
     if visual > 0:
-        vis(NodesCoord, Edges, Quadrants, PhasesDiff, False)
+        vis(NodesCoord, Edges, Quadrants, PhasesDiff, it, False)
     
     
     print('Evaluation of regions and verification...')

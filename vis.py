@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def vis(NodesCoord, Edges, Quadrants, PhasesDiff, Show=True):
+def vis(NodesCoord, Edges, Quadrants, PhasesDiff, it, Show=True):
     '''
     Visualises the existing mesh, with colored edges representing quadrants and candidate edges.
 
@@ -50,6 +50,7 @@ def vis(NodesCoord, Edges, Quadrants, PhasesDiff, Show=True):
     plt.xlabel("Re(z)")
     plt.ylabel("Im(z)")
     plt.tight_layout()
+    # Save to file Mesh of edge
     # plt.savefig(f'function_interation_{it}.eps', format='eps', dpi=1200)
 
     if Show:
