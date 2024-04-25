@@ -84,7 +84,7 @@ def grpf():
         PhasesDiff = np.mod(Quadrants[Edges[:, 0]] - Quadrants[Edges[:, 1]], 4).flatten()
 
         CandidateEdges = []
-        
+        QuantumCandidate = None
         if it == 1:
             # Quantum part
 
@@ -158,7 +158,8 @@ def grpf():
                 print(f'Edges found by quantum algorithm: {candidate_edges_Corder}')
                 print(f'Number of found edge by quantum algorithm: {len(candidate_edges_Corder)}')
                 print(f'Edges are {are_edges_true}!')
-    
+                QuantumCandidate = candidate_edges_Corder
+
                 if are_edges_true == True:
                     CandidateEdges = candidate_edges_Corder
                     break
@@ -264,7 +265,7 @@ def grpf():
 
         
         if visual == 2:
-            vis(NodesCoord, Edges, Quadrants, PhasesDiff, it)
+            vis(NodesCoord, Edges, Quadrants, PhasesDiff, it, QuantumCandidate=QuantumCandidate)
             pass
         
         print(f'Iteration: {it} done')

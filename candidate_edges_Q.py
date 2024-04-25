@@ -35,8 +35,6 @@ def gate_D(num_b, num_c):
     return U_d_gate
 
 def gate_B(num_a, num_b, query_func):
-    if max(query_func) > 2 ** num_b:
-        raise ValueError("Size num_b is lower than max value of query_func")
     qc = QuantumCircuit(num_a + num_b)
     x = np.array(list(enumerate(query_func)))
     for n in range(num_b):
@@ -54,9 +52,6 @@ def gate_B(num_a, num_b, query_func):
 
 
 def gate_C(num_a, num_c, query_func, direction, grid_width):
-    if max(query_func) > 2 ** num_c:
-        raise ValueError("Size num_b is lower than max value of query_func")
-
     query_func_temp = np.empty_like(query_func)
     index_last_column = len(query_func) - grid_width - (grid_width + 1) % 2
     if direction == 0:
@@ -210,11 +205,18 @@ def find_candidate_edges(quadrants_arr, grid_width):
         result = simulator.run(t_circ).result()
         counts = result.get_counts()
 
-        # fig = plot_histogram(counts)
-        # plt.title(f'Direction {direction}')
-        # plt.tick_params(axis='x', which='major', labelsize=3)
+        if direction == 0:
+            text = 'α'
+        if direction == 1:
+            text = 'β'
+        if direction == 2:
+            text = 'γ'
+
+        fig = plot_histogram(counts)
+        plt.title(f'Direction {text}')
+        plt.tick_params(axis='x', which='major', labelsize=3)
         # plt.savefig(f'histogerm_direction_{direction}.eps', format='eps', dpi=1200)
-        # plt.show()
+        plt.show()
 
         reduced_results = []
         max_result = 0

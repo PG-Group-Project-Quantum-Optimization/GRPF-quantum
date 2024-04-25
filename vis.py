@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def vis(NodesCoord, Edges, Quadrants, PhasesDiff, it, Show=True):
+
+def vis(NodesCoord, Edges, Quadrants, PhasesDiff, it, Show=True, QuantumCandidate=None):
     '''
     Visualises the existing mesh, with colored edges representing quadrants and candidate edges.
 
@@ -10,18 +11,23 @@ def vis(NodesCoord, Edges, Quadrants, PhasesDiff, it, Show=True):
         Edges [(int, int)]: Indexes of nodes connected with edges
         Quadrants [int]: Quadrants of value of the function for nodes in NodesCoord
         PhasesDiff [int]: Difference of phase between coordinates at the end of the edges described in Edges 
+        QuantumCandidate: Edges candidate from quantum circuit.
         Show (bool): Whether to show the visualisation or wait for matplotlib.pyplot.show() after the function
     '''
     
     NoOfEdges = Edges.shape[0]
     EdgesColor = np.zeros((NoOfEdges, 1))
 
-    
-    EdgesColor[(PhasesDiff == 2) | np.isnan(PhasesDiff)] = 5  # suspected edges
-    
-    
+    if QuantumCandidate is not None:
+        for i in QuantumCandidate:
+            EdgesColor[
+                np.where((Edges == np.sort(i)).all(1))
+            ] = 5  # suspected edges
+    else:
+        EdgesColor[(PhasesDiff == 2) | np.isnan(PhasesDiff)] = 5  # suspected edges
+
+
     Temp = (PhasesDiff == 0)
-    Temp.flatten()
     EdgesColor[Temp.flatten()] = Quadrants[Edges[Temp.flatten(), 0]]
 
     vNaN = np.full(NoOfEdges, np.nan)
