@@ -186,8 +186,7 @@ def find_candidate_edges(quadrants_arr, grid_width):
 
         # for unknown s (number of solutions)
         num_of_iterations = random.randint(1, np.floor(np.pi * np.sqrt(N) / 4).astype(int))
-        num_of_iterations = int(np.sqrt(N))
-        
+
         print(f'Number of iterations: {num_of_iterations}')
 
         # creating the iterations of grover algorithm
