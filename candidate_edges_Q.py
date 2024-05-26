@@ -16,23 +16,25 @@ import time
 
 from scipy.ndimage import shift
 
+
 def gate_D(num_b, num_c):
     U_d_mat = np.zeros((2 ** (1 + num_c + num_b), 2 ** (1 + num_c + num_b)), dtype=int)
 
     b_size = num_b
     c_size = num_c
     d_size = 1
-    
+
     # |d>|c>|b> -> |y>|c>|b>
     for b_val in range(2 ** b_size):
         for c_val in range(2 ** c_size):
             for d_val in range(2 ** d_size):
-                mat_column_0 = d_val * (2 ** (b_size + c_size)) + (b_val * (2**c_size) + c_val)
+                mat_column_0 = d_val * (2 ** (b_size + c_size)) + (b_val * (2 ** c_size) + c_val)
                 out_val = (1 if abs(b_val - c_val) == 2 else 0)
-                mat_row = (d_val ^ out_val) * (2 ** (b_size + c_size)) + (b_val * (2**c_size) + c_val)
+                mat_row = (d_val ^ out_val) * (2 ** (b_size + c_size)) + (b_val * (2 ** c_size) + c_val)
                 U_d_mat[mat_row, mat_column_0] = 1
     U_d_gate = UnitaryGate(U_d_mat, label="  $U_d$  ")
     return U_d_gate
+
 
 def gate_B(num_a, num_b, query_func):
     qc = QuantumCircuit(num_a + num_b)
@@ -104,7 +106,7 @@ def get_candidate_edges_gate(point_index_size, query_func, grid_width, direction
 
     gateb_inverse = gateb.inverse()
     gateb_inverse.name = "  $U_b^{-1}$ "
-    
+
     circuit.append(gatec_inverse, a_r[:] + c_r[:])
     circuit.append(gateb_inverse, a_r[:] + b_r[:])
 
@@ -149,12 +151,24 @@ def grover_iteration(work_qubits, all_qubits, circuit, candidate_edges_gate):
     circuit.h(work_qubits)
 
 
-def find_candidate_edges(quadrants_arr, grid_width):
+def find_candidate_edges(quadrants_arr, grid_width, version=0):
+    res = []
+    if version == 0:
+        res = find_candidate_edges_iteration(quadrants_arr, grid_width, np.floor(np.pi * np.sqrt(N) / 4).astype(int))
+    elif version == 1:
+        num_T = 1
+        while not res:
+            res = find_candidate_edges_iteration(quadrants_arr, grid_width, int(num_T))
+            num_T *= 5 / 4
+    return res
+
+
+def find_candidate_edges_iteration(quadrants_arr, grid_width, num_T):
     random.seed(time.time())
 
     point_index_size = int(np.ceil(np.log2(len(quadrants_arr))))  # number of bits to fit a point with largest index
-    
-    np.set_printoptions(linewidth=(2**point_index_size)*3)
+
+    np.set_printoptions(linewidth=(2 ** point_index_size) * 3)
 
     #  padding with zeros to create additional data for `a` register and substract 1 to get quadrants from 0 to 3
     quadrants_data = quadrants_arr - 1
@@ -177,7 +191,7 @@ def find_candidate_edges(quadrants_arr, grid_width):
         circuit.h(a_r[:])
 
         N = 2 ** a_r.size
-        
+
         # s = 4  # number of solutions for a given direction (if known)
         # theta = np.arcsin(np.sqrt(s / N))
         # num_of_iterations = np.floor(np.pi / (4 * theta)).astype(int)
@@ -185,7 +199,7 @@ def find_candidate_edges(quadrants_arr, grid_width):
         # print("P = %12.10f" % (p))
 
         # for unknown s (number of solutions)
-        num_of_iterations = random.randint(1, np.floor(np.pi * np.sqrt(N) / 4).astype(int))
+        num_of_iterations = random.randint(1, num_T)
 
         print(f'Number of iterations: {num_of_iterations}')
 
@@ -197,7 +211,7 @@ def find_candidate_edges(quadrants_arr, grid_width):
             circuit.measure(a_r[i], i)
 
         # IPython.display.display(circuit.draw(output='mpl',  style='bw'))
-        
+
         # simulating the circuit 1024 times
         simulator = Aer.get_backend('qasm_simulator')
         t_circ = transpile(circuit, simulator)
@@ -211,17 +225,19 @@ def find_candidate_edges(quadrants_arr, grid_width):
         if direction == 2:
             text = 'γ'
 
-        fig = plot_histogram(counts)
-        plt.title(f'Direction {text}')
-        plt.tick_params(axis='x', which='major', labelsize=3)
-        # plt.savefig(f'histogerm_direction_{direction}.eps', format='eps', dpi=1200)
-        plt.show()
-
         reduced_results = []
         max_result = 0
         for result in counts:
             if counts[result] > max_result:
                 max_result = counts[result]
+
+        # fig = plot_histogram(counts)
+        # plt.hlines(max_result / 2,0,len(counts), linestyles='--', colors='r')
+        # plt.text(len(counts) - 2, max_result/2 + 1, f"{max_result / 2}", color='r')
+        # plt.title(f'Direction {text}')
+        # plt.tick_params(axis='x', which='major', labelsize=3)
+        # plt.savefig(f'histogram_direction_{direction}.eps', format='eps', dpi=1200)
+        # plt.show()
 
         for result in counts:
             if counts[result] >= max_result / 2:
@@ -249,4 +265,3 @@ def find_candidate_edges(quadrants_arr, grid_width):
                                            candidate_edges[:, 1] < len(quadrants_arr))
 
     return candidate_edges[filter_outside_values]
-    
