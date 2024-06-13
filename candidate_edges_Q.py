@@ -15,7 +15,9 @@ import random
 import time
 
 from scipy.ndimage import shift
-
+counts1 = []
+counts2 = []
+counts3 = []
 
 def gate_D(num_b, num_c):
     U_d_mat = np.zeros((2 ** (1 + num_c + num_b), 2 ** (1 + num_c + num_b)), dtype=int)
@@ -151,8 +153,12 @@ def grover_iteration(work_qubits, all_qubits, circuit, candidate_edges_gate):
     circuit.h(work_qubits)
 
 
-def find_candidate_edges(quadrants_arr, grid_width, version=0):
+def find_candidate_edges(quadrants_arr, grid_width, version=2):
     res = []
+    counts1 = []
+    counts2 = []
+    counts3 = []
+    N = 2 ** int(np.ceil(np.log2(len(quadrants_arr))))
     if version == 0:
         res = find_candidate_edges_iteration(quadrants_arr, grid_width, np.floor(np.pi * np.sqrt(N) / 4).astype(int))
     elif version == 1:
@@ -160,10 +166,16 @@ def find_candidate_edges(quadrants_arr, grid_width, version=0):
         while not res:
             res = find_candidate_edges_iteration(quadrants_arr, grid_width, int(num_T))
             num_T *= 5 / 4
+    elif version == 2:
+        for q in range(1024):
+            res.append(find_candidate_edges_iteration(quadrants_arr, grid_width, np.floor(np.pi * np.sqrt(N) / 4).astype(int), 1))
+        plot_histogram(counts1)
+        plot_histogram(counts2)
+        plot_histogram(counts3)
     return res
 
 
-def find_candidate_edges_iteration(quadrants_arr, grid_width, num_T):
+def find_candidate_edges_iteration(quadrants_arr, grid_width, num_T, shots=1024):
     random.seed(time.time())
 
     point_index_size = int(np.ceil(np.log2(len(quadrants_arr))))  # number of bits to fit a point with largest index
@@ -215,15 +227,18 @@ def find_candidate_edges_iteration(quadrants_arr, grid_width, num_T):
         # simulating the circuit 1024 times
         simulator = Aer.get_backend('qasm_simulator')
         t_circ = transpile(circuit, simulator)
-        result = simulator.run(t_circ).result()
+        result = simulator.run(t_circ, shots=shots).result()
         counts = result.get_counts()
 
         if direction == 0:
             text = 'α'
+            counts1.append(counts)
         if direction == 1:
             text = 'β'
+            counts2.append(counts)
         if direction == 2:
             text = 'γ'
+            counts3.append(counts)
 
         reduced_results = []
         max_result = 0
