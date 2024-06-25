@@ -7,7 +7,7 @@ xe = 8
 yb = -8
 ye = 8
 
-r = 3
+r = 2
 
 NewNodesCoord = rect_dom(xb, xe, yb, ye, r)
 

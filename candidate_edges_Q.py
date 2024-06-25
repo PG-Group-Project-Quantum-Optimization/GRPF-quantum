@@ -4,6 +4,8 @@ from qiskit import Aer, assemble, QuantumCircuit, transpile, QuantumRegister, Cl
 from qiskit.visualization import plot_histogram
 from qiskit.quantum_info import Statevector
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.transforms as transforms
 from qiskit.providers.aer import AerSimulator
 from qiskit.quantum_info.operators import Operator
 from qiskit.circuit.library.phase_oracle import PhaseOracle
@@ -34,8 +36,6 @@ def gate_D(num_b, num_c):
     return U_d_gate
 
 def gate_B(num_a, num_b, query_func):
-    if max(query_func) > 2 ** num_b:
-        raise ValueError("Size num_b is lower than max value of query_func")
     qc = QuantumCircuit(num_a + num_b)
     x = np.array(list(enumerate(query_func)))
     for n in range(num_b):
@@ -53,8 +53,6 @@ def gate_B(num_a, num_b, query_func):
 
 
 def gate_C(num_a, num_c, query_func, direction, grid_width):
-    if max(query_func) > 2 ** num_c:
-        raise ValueError("Size num_b is lower than max value of query_func")
 
     query_func_temp = np.empty_like(query_func)
     index_last_column = len(query_func) - grid_width - (grid_width + 1) % 2
@@ -153,7 +151,7 @@ def grover_iteration(work_qubits, all_qubits, circuit, candidate_edges_gate):
     circuit.h(work_qubits)
 
 
-def find_candidate_edges(quadrants_arr, grid_width, num_T):
+def find_candidate_edges(quadrants_arr, grid_width, num_T, direction):
     random.seed(time.time())
 
     point_index_size = int(np.ceil(np.log2(len(quadrants_arr))))  # number of bits to fit a point with largest index
@@ -164,85 +162,102 @@ def find_candidate_edges(quadrants_arr, grid_width, num_T):
     quadrants_data = quadrants_arr - 1
 
     candidate_edges_list = []
-    for direction in range(3):
-        print(f'Direction: {direction}')
-        candidate_edges_gate = get_candidate_edges_gate(point_index_size=point_index_size, query_func=quadrants_data,
-                                                        grid_width=grid_width, direction=direction,
-                                                        number_of_true_points=len(quadrants_arr))
+    print(f'Direction: {direction}')
+    candidate_edges_gate = get_candidate_edges_gate(point_index_size=point_index_size, query_func=quadrants_data,
+                                                    grid_width=grid_width, direction=direction,
+                                                    number_of_true_points=len(quadrants_arr))
 
-        a_r = QuantumRegister(point_index_size, 'a')
-        b_r = QuantumRegister(2, 'b')
-        c_r = QuantumRegister(2, 'c')
-        d_r = QuantumRegister(1, 'd')
-        cl_a_r = ClassicalRegister(a_r.size, 'a_out')
-        circuit = QuantumCircuit(a_r, b_r, c_r, d_r, cl_a_r)
+    a_r = QuantumRegister(point_index_size, 'a')
+    b_r = QuantumRegister(2, 'b')
+    c_r = QuantumRegister(2, 'c')
+    d_r = QuantumRegister(1, 'd')
+    cl_a_r = ClassicalRegister(a_r.size, 'a_out')
+    circuit = QuantumCircuit(a_r, b_r, c_r, d_r, cl_a_r)
 
-        # prepare a superposition of work qubits
-        circuit.h(a_r[:])
+    # prepare a superposition of work qubits
+    circuit.h(a_r[:])
 
-        N = 2 ** a_r.size
-        
-        # s = 4  # number of solutions for a given direction (if known)
-        # theta = np.arcsin(np.sqrt(s / N))
-        # num_of_iterations = np.floor(np.pi / (4 * theta)).astype(int)
-        # p = np.sin((2 * num_of_iterations + 1) * theta) ** 2  # probability of finding the solution in one iteration
-        # print("P = %12.10f" % (p))
+    N = 2 ** a_r.size
+    
+    # s = 4  # number of solutions for a given direction (if known)
+    # theta = np.arcsin(np.sqrt(s / N))
+    # num_of_iterations = np.floor(np.pi / (4 * theta)).astype(int)
+    # p = np.sin((2 * num_of_iterations + 1) * theta) ** 2  # probability of finding the solution in one iteration
+    # print("P = %12.10f" % (p))
 
-        # for unknown s (number of solutions)
-        # num_of_iterations = random.randint(1, np.floor(np.pi * np.sqrt(N) / 4).astype(int))
-        # num_of_iterations = int(np.sqrt(N))
-        num_of_iterations = num_T
+    # for unknown s (number of solutions)
+    # num_of_iterations = random.randint(1, np.floor(np.pi * np.sqrt(N) / 4).astype(int))
+    # num_of_iterations = int(np.sqrt(N))
+    num_of_iterations = int(num_T)
+    
+    print(f'Number of iterations: {num_of_iterations}')
 
-        
-        print(f'Number of iterations: {num_of_iterations}')
+    # creating the iterations of grover algorithm
+    for i in range(num_of_iterations):
+        grover_iteration(a_r[:], a_r[:] + b_r[:] + c_r[:] + d_r[:], circuit, candidate_edges_gate)
 
-        # creating the iterations of grover algorithm
-        for i in range(num_of_iterations):
-            grover_iteration(a_r[:], a_r[:] + b_r[:] + c_r[:] + d_r[:], circuit, candidate_edges_gate)
+    for i in range(a_r.size):
+        circuit.measure(a_r[i], i)
 
-        for i in range(a_r.size):
-            circuit.measure(a_r[i], i)
+    # IPython.display.display(circuit.draw(output='mpl',  style='bw'))
+    
+    # simulating the circuit 1024 times
+    simulator = Aer.get_backend('qasm_simulator')
+    t_circ = transpile(circuit, simulator)
+    result = simulator.run(t_circ).result()
+    counts = result.get_counts()
 
-        # IPython.display.display(circuit.draw(output='mpl',  style='bw'))
-        
-        # simulating the circuit 1024 times
-        simulator = Aer.get_backend('qasm_simulator')
-        t_circ = transpile(circuit, simulator)
-        result = simulator.run(t_circ).result()
-        counts = result.get_counts()
+    reduced_results = []
+    max_result = 0
+    for result in counts:
+        if counts[result] > max_result:
+            max_result = counts[result]
 
-        IPython.display.display(plot_histogram(counts))
+    if direction == 0:
+        text = 'α'
+    if direction == 1:
+        text = 'β'
+    if direction == 2:
+        text = 'γ'
+    
+    fig = plot_histogram(counts, title=f'Direction {text}')
+    fig.gca().tick_params(axis='x', which='major', labelsize=3)
+    fig.gca().axhline(y = max_result / 3.0, color = 'r', linestyle = '--') 
+    # plt.savefig(f'histogerm_direction_{direction}.eps', format='eps', dpi=1200)
 
-        reduced_results = []
-        max_result = 0
-        for result in counts:
-            if counts[result] > max_result:
-                max_result = counts[result]
+    fig.gca().text(len(counts) + 2, max_result / 3.0 + 1, "{:.1f}".format(max_result / 3.0), color="red", ha="right", va="center")
+    
+    # IPython.display.display(plot_histogram(counts))
+    IPython.display.display(fig)
 
-        for result in counts:
-            if counts[result] >= max_result / 3.0:
-                reduced_results.append(result)
+    for result in counts:
+        if counts[result] >= max_result / 3.0:
+            reduced_results.append(result)
 
-        # if over alpha of all possible solutions matched, then there's high probability that there was no solution for this direction
-        alpha = 0.33
+    # if over alpha of all possible solutions matched, then there's high probability that there was no solution for this direction
+    alpha = 0.50
 
-        if len(reduced_results) / 2 ** a_r.size >= alpha:
-            print(f'No solutions for this direction')
-        else:
-            # selecting the second point based on the direction of searching
-            for node_in_str in reduced_results:
-                nodeA = int(node_in_str, 2)
-                if direction == 0:
-                    nodeB = nodeA + grid_width + 1
-                elif direction == 1:
-                    nodeB = nodeA + 1
-                elif direction == 2:
-                    nodeB = nodeA + grid_width
-                candidate_edges_list.append([nodeA, nodeB])
+    if len(reduced_results) / 2 ** a_r.size >= alpha:
+        print(f'No solutions for this direction')
+    else:
+        # selecting the second point based on the direction of searching
+        for node_in_str in reduced_results:
+            nodeA = int(node_in_str, 2)
+            if direction == 0:
+                nodeB = nodeA + grid_width + 1
+            elif direction == 1:
+                nodeB = nodeA + 1
+            elif direction == 2:
+                nodeB = nodeA + grid_width
+            candidate_edges_list.append([nodeA, nodeB])
 
     candidate_edges = np.array(candidate_edges_list)
-    filter_outside_values = np.logical_and(candidate_edges[:, 0] < len(quadrants_arr),
+    if candidate_edges_list:
+        filter_outside_values = np.logical_and(candidate_edges[:, 0] < len(quadrants_arr),
                                            candidate_edges[:, 1] < len(quadrants_arr))
+        return candidate_edges[filter_outside_values]
+    else:
+        return []
 
-    return candidate_edges[filter_outside_values]
+    
     

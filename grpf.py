@@ -26,12 +26,13 @@ from find_next_node import find_next_node
 from disk_dom import disk_dom
 from vis import vis
 from candidate_edges_Q import find_candidate_edges
+import IPython
 
 
 def grpf():
 
-    from example2_lossy_multilayered_waveguide.analysis_parameters import ItMax, NodesMax, Tol, SkinnyTriangle, visual, NewNodesCoord
-    from example2_lossy_multilayered_waveguide.fun import fun
+    from example_functionA.analysis_parameters import ItMax, NodesMax, Tol, SkinnyTriangle, visual, NewNodesCoord
+    from example_functionA.fun import fun
         
     # Initialize variables
     NodesCoord = np.array([]).reshape(0, 2)
@@ -67,8 +68,8 @@ def grpf():
 
         #Triangulation 
         opts = None
-        DT = tr.triangulate({'vertices': NodesCoord}, 'e')
-        Elements = DT['triangles']  # gets indices of NodesCoord([[x,y], [x,y], ...]) that make triangles([[a,b,c], [a,b,c]]) ->
+        DT = Delaunay(NodesCoord)
+        Elements = DT.simplices  # gets indices of NodesCoord([[x,y], [x,y], ...]) that make triangles([[a,b,c], [a,b,c]]) ->
         # -> NodesCoord[Elements] = [[[x_a, y_a], [x_b, y_b], [x_c, y_c]], [x_a, y_a], [x_b, y_b], [x_c, y_c]], ...]
 
         NrOfElements = Elements.shape[0]
@@ -84,99 +85,53 @@ def grpf():
         PhasesDiff = np.mod(Quadrants[Edges[:, 0]] - Quadrants[Edges[:, 1]], 4).flatten()
 
         CandidateEdges = []
-        QuantumCandidate = None
+        
         if it == 1:
             # Quantum part
 
-            max_tries = 10
-            are_edges_true = False
-            for tries in range(max_tries):
-                print(f'tries {tries}')
-                
-                # find grid width (counted in number of points in the first line in quantum ordering -> leftmost straight line)
-                grid_width = 0
-                for i in range(len(node_indicies)):
-                    if i != 0 and NodesCoord[node_indicies[0], 0] != NodesCoord[node_indicies[i], 0]:
-                        grid_width = i
-                        break
-
-                # # ---------------------
-                # # Save to file Edge directions plot
-                # xy_pos = (NodesCoord[node_indicies])
-                # query_func_temp = np.empty_like(xy_pos)
-                # index_last_column = xy_pos.shape[0] - grid_width - (grid_width + 1) % 2
-                # for direction in range(3):
-                #     if direction == 0:
-                #         query_func_temp[:index_last_column - (grid_width % 2)] = xy_pos[grid_width + 1:]
-                #         query_func_temp[(2 * grid_width)::(2 * grid_width) + 1] = xy_pos[(2 * grid_width)::(
-                #                                                                                                        2 * grid_width) + 1]
-                #         query_func_temp[index_last_column:] = xy_pos[index_last_column:]
-                #         color = [1, 0, 0]
-                #     elif direction == 1:
-                #         query_func_temp[:-1] = xy_pos[1:]
-                #         query_func_temp[grid_width - 1::(2 * grid_width) + 1] = xy_pos[
-                #                                                                 grid_width - 1::(2 * grid_width) + 1]
-                #         query_func_temp[2 * grid_width::(2 * grid_width) + 1] = xy_pos[
-                #                                                                 2 * grid_width::(2 * grid_width) + 1]
-                #         color = [0, 0, 1]
-                #     elif direction == 2:
-                #         query_func_temp[:index_last_column + (grid_width + 1) % 2] = xy_pos[grid_width:]
-                #         query_func_temp[grid_width::(2 * grid_width) + 1] = xy_pos[grid_width::(2 * grid_width) + 1]
-                #         query_func_temp[index_last_column:] = xy_pos[index_last_column:]
-                #         color = [0, 0.5, 0]
-                #     plt.quiver(
-                #         xy_pos[:, 0],
-                #         xy_pos[:, 1],
-                #         query_func_temp[:, 0] - xy_pos[:, 0],
-                #         query_func_temp[:, 1] - xy_pos[:, 1],
-                #         scale_units="xy", angles='xy', scale=1, color=color
-                #     )
-                # plt.xlabel("Re(z)")
-                # plt.ylabel("Im(z)")
-                # plt.legend(["α", "β", "γ"], loc="upper right", bbox_to_anchor=(1.1, 1.0))
-                # plt.tight_layout()
-                # plt.savefig(f'function_direction.eps', format='eps', dpi=1200)
-                # plt.show()
-                # # ---------------------
-
-
-                quadrant_arr = Quadrants[:,0].astype(int)
-
-                # default values (should be overriden)
-                candidate_edges_Corder = []
-
-                are_edges_true = False
-                num_T = 1
-                N = 2 ** int(np.ceil(np.log2(len(quadrant_arr)))) 
-                while not are_edges_true and num_T < np.floor(np.pi * np.sqrt(N) / 4).astype(int):
-                    candidate_edges_Qorder = find_candidate_edges(quadrant_arr[node_indicies], grid_width, int(num_T))  # candidate_edges in order of the quantum algorithm of GRPF
-    
-                    candidate_edges_Corder = np.empty([len(candidate_edges_Qorder), 2], dtype=int)  # candidate_edges in order of the classical algorithm of GRPF
-                    for i in range(len(candidate_edges_Qorder)):
-                        candidate_edges_Corder[i, 0] = node_indicies[candidate_edges_Qorder[i, 0]]
-                        candidate_edges_Corder[i, 1] = node_indicies[candidate_edges_Qorder[i, 1]]
-        
-                    are_edges_true = True
-                    # check if the candidates edges are true
-                    for Edge in candidate_edges_Corder:
-                        if np.absolute(Quadrants[Edge[0]] - Quadrants[Edge[1]]) != 2:
-                            are_edges_true = False
-                            break
-
-
-                    print(f'Edges found by quantum algorithm: {candidate_edges_Corder}')
-                    print(f'Number of found edge by quantum algorithm: {len(candidate_edges_Corder)}')
-                    print(f'Edges are {are_edges_true}!')
-                    QuantumCandidate = candidate_edges_Corder
-
-                    num_T *= 5/4
-
-                    
-
-                if are_edges_true == True:
-                    CandidateEdges = candidate_edges_Corder
+            # find grid width (counted in number of points in the first line in quantum ordering -> leftmost straight line)
+            grid_width = 0
+            for i in range(len(node_indicies)):
+                if i != 0 and NodesCoord[node_indicies[0], 0] != NodesCoord[node_indicies[i], 0]:
+                    grid_width = i
                     break
 
+            quadrant_arr = Quadrants[:,0].astype(int)
+            
+            N = 2 ** int(np.ceil(np.log2(len(quadrant_arr)))) 
+            for direction in range(3):
+                are_edges_true = False
+                num_T = 1
+                num_T_old = 0
+                while not are_edges_true and num_T < np.floor(np.pi * np.sqrt(N) / 4).astype(int):
+                    if int(num_T_old) != int(num_T):
+                        num_T_old = num_T
+                        candidate_edges_Qorder = find_candidate_edges(quadrant_arr[node_indicies], grid_width, num_T, direction)  # candidate_edges in order of the quantum algorithm of GRPF
+                        if len(candidate_edges_Qorder) > 0:
+                            candidate_edges_Corder = np.empty([len(candidate_edges_Qorder), 2], dtype=int)  # candidate_edges in order of the classical algorithm of GRPF
+                            for i in range(len(candidate_edges_Qorder)):
+                                candidate_edges_Corder[i, 0] = node_indicies[candidate_edges_Qorder[i, 0]]
+                                candidate_edges_Corder[i, 1] = node_indicies[candidate_edges_Qorder[i, 1]]
+                
+                            are_edges_true = True
+                            # check if the candidates edges are true
+                            for Edge in candidate_edges_Corder:
+                                if np.absolute(Quadrants[Edge[0]] - Quadrants[Edge[1]]) != 2:
+                                    are_edges_true = False
+                                    break
+            
+                            print(f'Edges found by quantum algorithm: {candidate_edges_Corder}')
+                            print(f'Number of found edge by quantum algorithm: {len(candidate_edges_Corder)}')
+                            print(f'Edges are {are_edges_true}!')
+                            QuantumCandidate = candidate_edges_Corder
+    
+                            if len(CandidateEdges) == 0:
+                                CandidateEdges = candidate_edges_Corder
+                            else:
+                                CandidateEdges = np.concatenate((CandidateEdges, candidate_edges_Corder), axis=0)
+                        
+                    num_T *= 5/4
+            
         else:
             CandidateEdges = Edges[(PhasesDiff == 2) | np.isnan(PhasesDiff)]
         
@@ -278,7 +233,7 @@ def grpf():
 
         
         if visual == 2:
-            vis(NodesCoord, Edges, Quadrants, PhasesDiff, it, QuantumCandidate=QuantumCandidate)
+            vis(NodesCoord, Edges, Quadrants, PhasesDiff, it)
             pass
         
         print(f'Iteration: {it} done')
@@ -292,7 +247,7 @@ def grpf():
     
     # Visualization if visual > 0
     if visual > 0:
-        vis(NodesCoord, Edges, Quadrants, PhasesDiff, it, False)
+        vis(NodesCoord, Edges, Quadrants, PhasesDiff, False)
     
     
     print('Evaluation of regions and verification...')
@@ -391,6 +346,7 @@ def grpf():
     
     if visual > 0:
         plt.show()
+
 
     
     # Printing results
