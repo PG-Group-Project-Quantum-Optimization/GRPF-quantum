@@ -223,7 +223,7 @@ def find_candidate_edges(quadrants_arr, grid_width, num_T, direction):
     fig = plot_histogram(counts, title=f'Direction {text}')
     fig.gca().tick_params(axis='x', which='major', labelsize=3)
     fig.gca().axhline(y = max_result / 3.0, color = 'r', linestyle = '--') 
-    # plt.savefig(f'histogerm_direction_{direction}.eps', format='eps', dpi=1200)
+    plt.savefig(f'histogram_direction_{direction}_t{num_of_iterations}.eps', format='eps', dpi=1200)
 
     fig.gca().text(len(counts) + 2, max_result / 3.0 + 1, "{:.1f}".format(max_result / 3.0), color="red", ha="right", va="center")
     
@@ -235,7 +235,7 @@ def find_candidate_edges(quadrants_arr, grid_width, num_T, direction):
             reduced_results.append(result)
 
     # if over alpha of all possible solutions matched, then there's high probability that there was no solution for this direction
-    alpha = 0.50
+    alpha = 0.90
 
     if len(reduced_results) / 2 ** a_r.size >= alpha:
         print(f'No solutions for this direction')
