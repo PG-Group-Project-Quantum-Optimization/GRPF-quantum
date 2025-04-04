@@ -14,6 +14,64 @@ counts1 = []
 counts2 = []
 counts3 = []
 
+def grover_operator(n_iterations, a_r, b_r, c_r, d_r, candidate_edges_gate,point_index_size):
+    temp = QuantumCircuit(a_r, b_r, c_r, d_r)
+    tempgrov = QuantumCircuit(a_r, b_r, c_r, d_r)
+    grover_iteration(a_r[:], a_r[:] + b_r[:] + c_r[:] + d_r[:], tempgrov, candidate_edges_gate)
+    tempgrov=tempgrov.to_gate()
+    for _ in range(n_iterations):
+        temp.append(tempgrov,temp.qubits[:(point_index_size+5)])
+    #IPython.display.display(temp.draw(output='mpl', style='bw'))
+    temp2 = temp.to_gate()
+    temp2.label = f"G^{n_iterations}"
+    return temp2
+def quantum_counting(qc_circuit, candidate_edges_gate, a_r, b_r, c_r, d_r,point_index_size):
+    qft_dagger = QFT(point_index_size, inverse=True).to_gate()
+    qft_dagger.label = "QFT†"
+
+    # Initialize all qubits to |+> 2*point_index_size
+    for qubit in range(2*point_index_size):
+        qc_circuit.h(qubit)
+
+    qc_circuit.x(-1)
+    qc_circuit.h(-1)
+
+    n_iterations = 1
+    for qubit in range(point_index_size):
+        cgrit = grover_operator(n_iterations, a_r, b_r, c_r, d_r, candidate_edges_gate,point_index_size).control()
+        qc_circuit.append(cgrit, [qubit] + list(range(point_index_size, 2*point_index_size+5)))
+        n_iterations *= 2
+
+    # Do inverse QFT on counting qubits
+    qc_circuit.append(qft_dagger, range(point_index_size))
+
+    # Measure counting qubits
+    qc_circuit.measure(range(point_index_size), range(point_index_size))
+
+    # Display the circuit
+    fig = qc_circuit.draw(output='mpl', style='bw', fold=-1)
+    IPython.display.display(fig)
+
+    # Execute and see results
+    sim = Aer.get_backend('qasm_simulator')
+    transpiled_qc = transpile(qc_circuit, sim)
+    job = sim.run(transpiled_qc, shots=1024)
+    hist = job.result().get_counts()
+    plot_histogram(hist)
+    plt.show()
+    measured_str = max(hist, key=hist.get)
+    measured_int = int(measured_str, 2)
+    print("Register Output = %i" % measured_int)
+    theta = (measured_int / (2 ** point_index_size)) * math.pi * 2
+    print("Theta = %.5f" % theta)
+    N = 2**point_index_size
+    M = N * (math.sin(theta / 2) ** 2)
+    print(f"No. of Solutions = {M:.1f}")
+    m = point_index_size - 1
+    err = (math.sqrt(2 * M * N) + N / (2 ** (m + 1))) * (2 ** (-m))
+    print("Error < %.2f" % err)
+    return M
+
 def gate_D(num_b, num_c):
     U_d_mat = np.zeros((2 ** (1 + num_c + num_b), 2 ** (1 + num_c + num_b)), dtype=int)
 
@@ -171,8 +229,16 @@ def find_candidate_edges_iteration(quadrants_arr, grid_width, num_T, shots=1024)
         circuit.x(-1)
         circuit.h(-1)
 
-        # for unknown s (number of solutions)
-        num_of_iterations = random.randint(1, num_T)
+        # for unknown s (number of solutions) old version
+        #num_of_iterations = random.randint(1, num_T)
+
+        # for unknown s (number of solutions) old version
+        N = 2 ** int(np.ceil(np.log2(len(quadrants_arr))))
+        M = quantum_counting(qc_circuit, candidate_edges_gate, a_r, b_r, c_r, d_r,point_index_size)
+        if M != 0.0:
+            num_of_iterations = int(np.ceil((np.pi / 4) * np.sqrt(N / M)))
+        else:
+            num_of_iterations = random.randint(1, num_T)
 
         print(f'Number of iterations: {num_of_iterations}')
 
