@@ -30,8 +30,8 @@ from candidate_edges_Q import find_candidate_edges
 
 def grpf():
 
-    from example_functionA.analysis_parameters import ItMax, NodesMax, Tol, SkinnyTriangle, visual, NewNodesCoord
-    from example_functionA.fun import fun
+    from analysis_parameters import ItMax, NodesMax, Tol, SkinnyTriangle, visual, NewNodesCoord
+    from fun import fun
         
     # Initialize variables
     NodesCoord = np.array([]).reshape(0, 2)
@@ -142,12 +142,10 @@ def grpf():
 
                 quadrant_arr = Quadrants[:,0].astype(int)
                 candidate_edges_Qorder = find_candidate_edges(quadrant_arr[node_indicies], grid_width)  # candidate_edges in order of the quantum algorithm of GRPF
-
                 candidate_edges_Corder = np.empty([len(candidate_edges_Qorder), 2], dtype=int)  # candidate_edges in order of the classical algorithm of GRPF
                 for i in range(len(candidate_edges_Qorder)):
                     candidate_edges_Corder[i, 0] = node_indicies[candidate_edges_Qorder[i, 0]]
                     candidate_edges_Corder[i, 1] = node_indicies[candidate_edges_Qorder[i, 1]]
-    
                 are_edges_true = True
                 # check if the candidates edges are true
                 for Edge in candidate_edges_Corder:

@@ -1,15 +1,10 @@
-from math import ceil
+import math
 
 import matplotlib.pyplot as plt
 from qiskit import Aer, assemble, QuantumCircuit, transpile, QuantumRegister, ClassicalRegister
 from qiskit.visualization import plot_histogram
-from qiskit.quantum_info import Statevector
 import numpy as np
-from qiskit.providers.aer import AerSimulator
-from qiskit.quantum_info.operators import Operator
-from qiskit.circuit.library.phase_oracle import PhaseOracle
-from qiskit.circuit.library import MCMT, UnitaryGate, HGate, ZGate, XGate
-from qiskit.result import QuasiDistribution
+from qiskit.circuit.library import MCMT, UnitaryGate, HGate, ZGate, XGate, QFT
 import IPython
 import random
 import time
@@ -112,26 +107,11 @@ def get_candidate_edges_gate(point_index_size, query_func, grid_width, direction
     circuit.append(gatec_inverse, a_r[:] + c_r[:])
     circuit.append(gateb_inverse, a_r[:] + b_r[:])
 
-    # IPython.display.display(circuit.draw(output='mpl',  style='bw'))
+    #IPython.display.display(circuit.draw(output='mpl',  style='bw'))
 
     candidate_edges_gate = circuit.to_gate(label='Z_f')
 
     return candidate_edges_gate
-
-
-def base_state(number_of_qubits, state_index):
-    column_vector = np.zeros((2 ** number_of_qubits, 1), dtype=complex)
-    column_vector[state_index][0] = 1
-    return column_vector
-
-
-def get_state_index(number_of_qubits, state):
-    state_index = 0
-    exp = 2 ** (number_of_qubits - 1)
-    for k in state:
-        state_index += k * exp
-        exp /= 2
-    return state_index
 
 
 def grover_iteration(work_qubits, all_qubits, circuit, candidate_edges_gate):
@@ -153,25 +133,9 @@ def grover_iteration(work_qubits, all_qubits, circuit, candidate_edges_gate):
     circuit.h(work_qubits)
 
 
-def find_candidate_edges(quadrants_arr, grid_width, version=2):
-    res = []
-    counts1 = []
-    counts2 = []
-    counts3 = []
+def find_candidate_edges(quadrants_arr, grid_width):
     N = 2 ** int(np.ceil(np.log2(len(quadrants_arr))))
-    if version == 0:
-        res = find_candidate_edges_iteration(quadrants_arr, grid_width, np.floor(np.pi * np.sqrt(N) / 4).astype(int))
-    elif version == 1:
-        num_T = 1
-        while not res:
-            res = find_candidate_edges_iteration(quadrants_arr, grid_width, int(num_T))
-            num_T *= 5 / 4
-    elif version == 2:
-        for q in range(1024):
-            res.append(find_candidate_edges_iteration(quadrants_arr, grid_width, np.floor(np.pi * np.sqrt(N) / 4).astype(int), 1))
-        plot_histogram(counts1)
-        plot_histogram(counts2)
-        plot_histogram(counts3)
+    res = find_candidate_edges_iteration(quadrants_arr, grid_width, np.floor(np.pi * np.sqrt(N) / 4).astype(int))
     return res
 
 
@@ -187,28 +151,25 @@ def find_candidate_edges_iteration(quadrants_arr, grid_width, num_T, shots=1024)
 
     candidate_edges_list = []
     for direction in range(3):
-        print(f'Direction: {direction}')
+        #print(f'Direction: {direction}')
         candidate_edges_gate = get_candidate_edges_gate(point_index_size=point_index_size, query_func=quadrants_data,
                                                         grid_width=grid_width, direction=direction,
                                                         number_of_true_points=len(quadrants_arr))
 
         a_r = QuantumRegister(point_index_size, 'a')
+        qc_a_r = QuantumRegister(point_index_size, 'qc_a')
         b_r = QuantumRegister(2, 'b')
         c_r = QuantumRegister(2, 'c')
         d_r = QuantumRegister(1, 'd')
         cl_a_r = ClassicalRegister(a_r.size, 'a_out')
         circuit = QuantumCircuit(a_r, b_r, c_r, d_r, cl_a_r)
+        qc_circuit = QuantumCircuit(qc_a_r,a_r, b_r, c_r, d_r, cl_a_r)
 
         # prepare a superposition of work qubits
         circuit.h(a_r[:])
 
-        N = 2 ** a_r.size
-
-        # s = 4  # number of solutions for a given direction (if known)
-        # theta = np.arcsin(np.sqrt(s / N))
-        # num_of_iterations = np.floor(np.pi / (4 * theta)).astype(int)
-        # p = np.sin((2 * num_of_iterations + 1) * theta) ** 2  # probability of finding the solution in one iteration
-        # print("P = %12.10f" % (p))
+        circuit.x(-1)
+        circuit.h(-1)
 
         # for unknown s (number of solutions)
         num_of_iterations = random.randint(1, num_T)
@@ -222,7 +183,7 @@ def find_candidate_edges_iteration(quadrants_arr, grid_width, num_T, shots=1024)
         for i in range(a_r.size):
             circuit.measure(a_r[i], i)
 
-        # IPython.display.display(circuit.draw(output='mpl',  style='bw'))
+        #IPython.display.display(circuit.draw(output='mpl',  style='bw'))
 
         # simulating the circuit 1024 times
         simulator = Aer.get_backend('qasm_simulator')
@@ -246,13 +207,13 @@ def find_candidate_edges_iteration(quadrants_arr, grid_width, num_T, shots=1024)
             if counts[result] > max_result:
                 max_result = counts[result]
 
-        # fig = plot_histogram(counts)
-        # plt.hlines(max_result / 2,0,len(counts), linestyles='--', colors='r')
-        # plt.text(len(counts) - 2, max_result/2 + 1, f"{max_result / 2}", color='r')
-        # plt.title(f'Direction {text}')
-        # plt.tick_params(axis='x', which='major', labelsize=3)
-        # plt.savefig(f'histogram_direction_{direction}.eps', format='eps', dpi=1200)
-        # plt.show()
+        fig = plot_histogram(counts)
+        plt.hlines(max_result / 2,0,len(counts), linestyles='--', colors='r')
+        plt.text(len(counts) - 2, max_result/2 + 1, f"{max_result / 2}", color='r')
+        plt.title(f'Direction {text}')
+        plt.tick_params(axis='x', which='major', labelsize=3)
+        plt.savefig(f'histogram_direction_{direction}.eps', format='eps', dpi=1200)
+        plt.show()
 
         for result in counts:
             if counts[result] >= max_result / 2:
@@ -260,6 +221,8 @@ def find_candidate_edges_iteration(quadrants_arr, grid_width, num_T, shots=1024)
 
         # if over alpha of all possible solutions matched, then there's high probability that there was no solution for this direction
         alpha = 0.33
+
+        print(str(len(reduced_results))+" results for direction " + str(direction))
 
         if len(reduced_results) / 2 ** a_r.size >= alpha:
             print(f'No solutions for this direction')
