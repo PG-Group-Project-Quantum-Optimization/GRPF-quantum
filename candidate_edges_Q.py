@@ -1,7 +1,8 @@
 import math
 
 import matplotlib.pyplot as plt
-from qiskit import Aer, assemble, QuantumCircuit, transpile, QuantumRegister, ClassicalRegister
+from qiskit_aer import Aer
+from qiskit import QuantumCircuit, transpile, QuantumRegister, ClassicalRegister
 from qiskit.visualization import plot_histogram
 import numpy as np
 from qiskit.circuit.library import MCMT, UnitaryGate, HGate, ZGate, XGate, QFT
