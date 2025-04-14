@@ -1,0 +1,12 @@
+numpy==1.24.4
+qiskit==2.0.0; sys_platform== 'win32'
+qiskit-aer==0.17.0; sys_platform== 'win32'
+ipython==9.1.0; sys_platform== 'win32'
+
+qiskit==1.4.2; sys_platform== 'linux'
+qiskit-aer-gpu==0.15.1; sys_platform == 'linux'
+ipython==8.35.0; sys_platform== 'linux'
+matplotlib==3.10.1
+pylatexenc==2.10
+triangle==20250106
+
